@@ -137,11 +137,15 @@ def output_line(box, parts):
 
 def select_file():
     global loaded_doc
+    global fleet_movement_count
+    global num
     file_path = filedialog.askopenfilename(filetypes=[("Word documents", "*.docx")])
     if not file_path:
         return
 
     output_box.delete(1.0, tk.END)
+    fleet_movement_count = 0  # Reset count for new file
+    num = 0  # Reset fleet map index
     try:
         loaded_doc = Document(file_path)
         truce_tokens = extract_truce_tokens(loaded_doc)
@@ -159,6 +163,8 @@ def select_file():
 
 def find_fleet_movement_paragraphs(doc, output_box):
     global fleet_movement_count 
+    global draw_map_button1
+    global draw_map_button2
     for para in doc.paragraphs:
         words = para.text.strip().split()
         if len(words) >= 4 and words[2] == "Fleet" and words[3] == "Movement:":
@@ -173,6 +179,8 @@ def find_fleet_movement_paragraphs(doc, output_box):
         output_box.insert(tk.END, "No fleet movement strings found.\n", "highlight")
     else:
         output_box.insert(tk.END, f"\nFleet Movements found: {fleet_movement_count}\n", "normal")
+        draw_map_button2.config(state=tk.DISABLED)  # Initially disabled
+        draw_map_button1.config(state=tk.NORMAL)  
     return fleet_movement_count
 
 def print_current_turn(doc):
@@ -517,20 +525,32 @@ def find_fleet_movement_block(doc, num, label_text, canvas_content):
             else:
                 i += 1  # Keep moving forward if neither "Fleet Movement" nor "Status"
 
-def fleet_map_left(loaded_doc, num, label_text, canvas_content):
+def fleet_map_left(loaded_doc, label_text, canvas_content):
     global draw_map_button1
+    global draw_map_button2
+    global num
     if num > 1:
         # Only decrement if we haven't reached the first fleet movement
         num = num - 1
+        draw_map_button1.config(state=tk.NORMAL) 
         find_fleet_movement_block(loaded_doc, num, label_text, canvas_content)
+        if num == 1:
+            draw_map_button2.config(state=tk.DISABLED)
     
-def fleet_map_right(loaded_doc, num, label_text, canvas_content):
+def fleet_map_right(loaded_doc, label_text, canvas_content):
     global draw_map_button2
+    global draw_map_button1
+    global num
 
     if num < fleet_movement_count:
         # Only increment if we haven't reached the last fleet movement
         num = num + 1
+        if num > 1:
+            draw_map_button2.config(state=tk.NORMAL) 
         find_fleet_movement_block(loaded_doc, num, label_text, canvas_content)
+        if num == fleet_movement_count:
+            draw_map_button1.config(state=tk.DISABLED)
+         
     
 # GUI Setup
 root = tk.Tk()
@@ -582,14 +602,14 @@ num = 0
 label_text = tk.StringVar()
 label_text.set("Fleet")
 # Middle label between Prev and Next
-draw_map_button2 = tk.Button(nav_frame, text="Prev Fleet Maps", command=lambda: fleet_map_left(loaded_doc, num, label_text,canvas_content))
+draw_map_button2 = tk.Button(nav_frame, text="Prev Fleet Maps", command=lambda: fleet_map_left(loaded_doc, label_text,canvas_content))
 draw_map_button2.pack(side=tk.LEFT, padx=10)
 draw_map_button2.config(state=tk.DISABLED)  # Initially disabled
 nav_label = tk.Label(nav_frame, textvariable=label_text)
 nav_label.pack(side=tk.LEFT, expand=True)
 
 
-draw_map_button1 = tk.Button(nav_frame, text="Next Fleet Map", command=lambda: fleet_map_right(loaded_doc, num, label_text,canvas_content))
+draw_map_button1 = tk.Button(nav_frame, text="Next Fleet Map", command=lambda: fleet_map_right(loaded_doc, label_text,canvas_content))
 draw_map_button1.pack(side=tk.LEFT, padx=10)
 
 
